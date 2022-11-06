@@ -18,35 +18,37 @@ INITRD_DIR = ${TOP_DIR}/output/initrd
 NR_OF_CORES = 4
 
 fetch:
-	@if [ ! -f downloads/linux-${KERNEL_VERSION}.tar.gz ]; then \
+	mkdir -p ${DOWNLOAD_DIR}
+	@if [ ! -f ${DOWNLOAD_DIR}/linux-${KERNEL_VERSION}.tar.gz ]; then \
 		wget ${KERNEL_URL} -P downloads; \
 	else \
 		echo "Linux version ${KERNEL_VERSION} already downloaded, skipping"; \
 	fi
 
-	@if [ ! -f downloads/busybox-${BUSYBOX_VERSION}.tar.bz2 ]; then \
+	@if [ ! -f ${DOWNLOAD_DIR}/busybox-${BUSYBOX_VERSION}.tar.bz2 ]; then \
 		wget ${BUSYBOX_URL} -P downloads; \
 	else \
 		echo "BusyBox version ${BUSYBOX_VERSION} already downloaded, skipping"; \
 	fi
 
 extract:
-	@if [ ! -d "build/linux-${KERNEL_VERSION}" ]; then \
+	mkdir -p ${BUILD_DIR}
+	@if [ ! -d "${BUILD_DIR}/linux-${KERNEL_VERSION}" ]; then \
 		echo "extracting Linux-${KERNEL_VERSION}"; \
-		tar -xf downloads/linux-${KERNEL_VERSION}.tar.gz --directory build/; \
+		tar -xf ${DOWNLOAD_DIR}/linux-${KERNEL_VERSION}.tar.gz --directory build/; \
 	else \
 		echo "Linux kernel already extracted, skipping"; \
 	fi
 
-	@if [ ! -d "build/busybox-${BUSYBOX_VERSION}" ]; then \
+	@if [ ! -d "${BUILD_DIR}/busybox-${BUSYBOX_VERSION}" ]; then \
 		echo "extracting BusyBox-${BUSYBOX_VERSION}"; \
-		tar -xf downloads/busybox-${BUSYBOX_VERSION}.tar.bz2 --directory  build/; \
+		tar -xf ${DOWNLOAD_DIR}/busybox-${BUSYBOX_VERSION}.tar.bz2 --directory  build/; \
 	else \
 		echo "BusyBox already extracted, skipping"; \
 	fi
 
 patch:
-	@if [ -z "$(ls -A patches/busybox && ls -A patches/linux_kernel)" ]; then \
+	@if [ -z "$(ls -A ${PATCH_DIR}/busybox && ls -A ${PATCH_DIR}/linux_kernel)" ]; then \
 		echo "No patches found, skipping"; \
 		exit 0; \
 	fi
@@ -55,26 +57,27 @@ patch:
 
 configure: 
 	@echo "configuring Linux-${KERNEL_VERSION}"
-	@cd "${TOP_DIR}/build/linux-${KERNEL_VERSION}" && \
+	@cd "${BUILD_DIR}/linux-${KERNEL_VERSION}" && \
 	$(MAKE) defconfig
 
 	@echo "configuring BusyBox-${BUSYBOX_VERSION}"
-	@cd "${TOP_DIR}/build/busybox-${BUSYBOX_VERSION}" && \
+	@cd "${BUILD_DIR}/busybox-${BUSYBOX_VERSION}" && \
 	$(MAKE) defconfig && \
 	sed 's/^.*CONFIG_STATIC[^_].*$$/CONFIG_STATIC=y/g' -i .config
 
 compile:
 	@echo "compiling Linux-${KERNEL_VERSION}"
-	cd ${TOP_DIR}/build/linux-${KERNEL_VERSION} && \
+	cd ${BUILD_DIR}/linux-${KERNEL_VERSION} && \
 	$(MAKE) -j$(NR_OF_CORES)  || exit
 
 	@echo "compiling BusyBox-${BUSYBOX_VERSION}"
-	cd ${TOP_DIR}/build/busybox-${BUSYBOX_VERSION} && \
+	cd ${BUILD_DIR}/busybox-${BUSYBOX_VERSION} && \
 	$(MAKE) -j$(NR_OF_CORES)  || exit
 
 install:
-	@echo "moving Linux to ${TOP_DIR}/output"
-	@cp ${BUILD_DIR}/linux-${KERNEL_VERSION}/arch/x86_64/boot/bzImage ${TOP_DIR}/output
+	mkdir -p ${OUTPUT_DIR}
+	@echo "moving Linux to ${OUTPUT_DIR}"
+	@cp ${BUILD_DIR}/linux-${KERNEL_VERSION}/arch/x86_64/boot/bzImage ${OUTPUT_DIR}
 
 	@mkdir -p ${INITRD_DIR}/bin ${INITRD_DIR}/dev ${INITRD_DIR}/proc ${INITRD_DIR}/sys
 	@echo "moving BusyBox to ${TOP_DIR}/output"
@@ -104,4 +107,4 @@ clean:
 	rm -rf build/* output/*
 
 mrproper:
-	rm -rf patches/* downloads/* build/* output/*
+	rm -rf downloads/* build/* output/*
